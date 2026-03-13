@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useStore } from '@/store';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,8 @@ import { Eye, EyeOff, Bitcoin, Lock, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { state } = useStore();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -17,25 +20,22 @@ export default function LoginPage() {
     rememberMe: false,
   });
 
+  // Redirect if already logged in
+  useEffect(() => {
+    if (state.isAuthenticated && state.user) {
+      if (state.user.isAdmin) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [state.isAuthenticated, state.user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Set a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      setIsLoading(false);
-      toast.error('Login is taking too long. Please try again.');
-    }, 15000);
-
     try {
-      // Check if Supabase is configured
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        clearTimeout(timeoutId);
-        toast.error('Supabase is not configured. Please check your environment variables.');
-        setIsLoading(false);
-        return;
-      }
-
       // Sign in with Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
@@ -43,36 +43,82 @@ export default function LoginPage() {
       });
 
       if (error) {
-        clearTimeout(timeoutId);
         toast.error(error.message);
         setIsLoading(false);
         return;
       }
 
       if (data.user) {
-        // Wait a moment for the auth state change listener to handle login
-        // The store's onAuthStateChange listener will handle the login
-        clearTimeout(timeoutId);
-        toast.success('Login successful! Redirecting...');
-        
-        // Small delay to let the auth state propagate
-        setTimeout(() => {
+        // Fetch user profile directly
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          
+          // If profile doesn't exist, try to create one
+          if (profileError.code === 'PGRST116') {
+            const isAdmin = data.user.email?.toLowerCase() === 'fredokcee1@gmail.com';
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'User',
+                balance: 0,
+                total_invested: 0,
+                total_returns: 0,
+                is_admin: isAdmin,
+                is_frozen: false,
+                withdrawal_frozen: false,
+                kyc_verified: false,
+                kyc_status: 'not_submitted',
+                preferred_currency: 'USD',
+                preferred_language: 'en',
+                two_factor_enabled: false,
+                email_notifications: true,
+                sms_notifications: false,
+                created_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              toast.error('Error creating profile. Please contact support.');
+              setIsLoading(false);
+              return;
+            }
+
+            if (newProfile) {
+              toast.success(isAdmin ? 'Welcome back, Admin!' : 'Login successful!');
+              navigate(isAdmin ? '/admin' : '/dashboard', { replace: true });
+            }
+          } else {
+            toast.error('Error loading profile. Please try again.');
+          }
           setIsLoading(false);
-        }, 1000);
-        return;
+          return;
+        }
+
+        if (profile) {
+          toast.success(profile.is_admin ? 'Welcome back, Admin!' : 'Login successful!');
+          navigate(profile.is_admin ? '/admin' : '/dashboard', { replace: true });
+        }
       }
     } catch (error: any) {
-      clearTimeout(timeoutId);
       console.error('Login error:', error);
-      toast.error(error?.message || 'An error occurred during login. Please try again.');
-      setIsLoading(false);
+      toast.error(error?.message || 'Login failed. Please try again.');
     }
+
+    setIsLoading(false);
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     try {
-      // Get redirect URL from env or use current origin
       const redirectUrl = import.meta.env.VITE_REDIRECT_URL || `${window.location.origin}/dashboard`;
       
       const { error } = await supabase.auth.signInWithOAuth({
@@ -84,12 +130,13 @@ export default function LoginPage() {
       
       if (error) {
         toast.error(error.message);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('Google login error:', error);
       toast.error('An error occurred during Google login');
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
@@ -129,6 +176,7 @@ export default function LoginPage() {
             type="button"
             variant="outline"
             onClick={handleGoogleLogin}
+            disabled={isLoading}
             className="w-full border-crypto-border text-white hover:bg-crypto-card mb-4 md:mb-6 py-5 md:py-6"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
