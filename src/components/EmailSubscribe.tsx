@@ -21,12 +21,31 @@ export default function EmailSubscribe() {
     setIsLoading(true);
 
     try {
+      // First check if Supabase is configured
+      if (!import.meta.env.VITE_SUPABASE_URL) {
+        toast.error('Database not configured. Please contact support.');
+        setIsLoading(false);
+        return;
+      }
+
       // Check if email already exists
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('email_subscribers')
         .select('id')
         .eq('email', email.toLowerCase())
-        .single();
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Check error:', checkError);
+        // If table doesn't exist, show friendly message
+        if (checkError.code === '42P01' || checkError.message?.includes('relation') || checkError.message?.includes('does not exist')) {
+          toast.error('Subscription service is not ready. Please try again later.');
+        } else {
+          toast.error('Failed to check subscription status. Please try again.');
+        }
+        setIsLoading(false);
+        return;
+      }
 
       if (existing) {
         toast.info('You are already subscribed!');
@@ -36,16 +55,20 @@ export default function EmailSubscribe() {
       }
 
       // Add subscriber
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('email_subscribers')
         .insert({
           email: email.toLowerCase(),
           subscribed: true,
         });
 
-      if (error) {
-        console.error('Subscribe error:', error);
-        toast.error('Failed to subscribe. Please try again.');
+      if (insertError) {
+        console.error('Subscribe error:', insertError);
+        if (insertError.code === '42P01' || insertError.message?.includes('relation') || insertError.message?.includes('does not exist')) {
+          toast.error('Subscription service is not ready. Please try again later.');
+        } else {
+          toast.error('Failed to subscribe. Please try again.');
+        }
         setIsLoading(false);
         return;
       }
@@ -53,9 +76,9 @@ export default function EmailSubscribe() {
       toast.success('Successfully subscribed! You will receive updates on new blog posts.');
       setIsSubscribed(true);
       setEmail('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Subscribe error:', error);
-      toast.error('An error occurred. Please try again.');
+      toast.error(error?.message || 'An error occurred. Please try again.');
     }
 
     setIsLoading(false);
