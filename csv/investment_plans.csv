@@ -1,0 +1,6 @@
+name,min_amount,max_amount,daily_return,duration,featured,description
+Basic Plan,100,999,5.00,15,false,Starter investment plan for beginners
+Standard Plan,1000,4999,8.00,20,false,Standard plan with better returns
+Gold Plan,5000,24999,12.00,30,true,Our most popular investment plan
+Platinum Plan,25000,49999,15.00,45,false,Premium plan for serious investors
+Diamond Plan,50000,1000000,20.00,60,false,Elite plan with maximum returns
