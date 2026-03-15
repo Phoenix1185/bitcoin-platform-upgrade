@@ -227,11 +227,11 @@ function transformUserMetadata(user: any): User {
 // Fetch profile with a hard timeout so login never hangs
 async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<any | null> {
   const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
-  const profileFetch = supabase
+  const profileFetch: Promise<any | null> = (supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single()
+    .single() as unknown as Promise<{ data: any; error: any }>)
     .then(({ data, error }) => (error ? null : data))
     .catch(() => null);
   return Promise.race([profileFetch, timeout]);
