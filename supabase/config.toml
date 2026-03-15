@@ -1,0 +1,27 @@
+[project]
+id = "musprmolausqgixkonxq"
+
+[functions.daily-payouts]
+verify_jwt = false
+
+[functions.process-investment]
+verify_jwt = true
+
+# Cron job: run daily-payouts every day at 00:05 UTC
+# This is configured in Supabase Dashboard → Database → Cron Jobs
+# SQL to add the cron job (run in SQL Editor):
+#
+# SELECT cron.schedule(
+#   'daily-investment-payouts',
+#   '5 0 * * *',
+#   $$
+#   SELECT net.http_post(
+#     url := 'https://musprmolausqgixkonxq.supabase.co/functions/v1/daily-payouts',
+#     headers := jsonb_build_object(
+#       'Content-Type', 'application/json',
+#       'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+#     ),
+#     body := '{}'::jsonb
+#   );
+#   $$
+# );
