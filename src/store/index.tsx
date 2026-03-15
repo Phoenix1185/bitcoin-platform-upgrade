@@ -226,22 +226,15 @@ function transformUserMetadata(user: any): User {
 
 // Fetch profile with a hard timeout so login never hangs
 async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<any | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-      .abortSignal(controller.signal);
-    clearTimeout(timer);
-    if (error) return null;
-    return data;
-  } catch {
-    clearTimeout(timer);
-    return null;
-  }
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs));
+  const profileFetch = supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+    .then(({ data, error }) => (error ? null : data))
+    .catch(() => null);
+  return Promise.race([profileFetch, timeout]);
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
