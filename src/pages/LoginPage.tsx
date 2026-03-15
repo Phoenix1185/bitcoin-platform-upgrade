@@ -125,7 +125,7 @@ export default function LoginPage() {
               <Bitcoin className="w-6 h-6 md:w-7 md:h-7 text-crypto-dark" />
             </div>
             <span className="text-xl md:text-2xl font-display font-bold text-white">
-              BitWealth
+              {state.siteSettings?.siteName || 'BitWealth'}
             </span>
           </Link>
         </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { UserPlus, CheckCircle, Wallet, TrendingUp } from 'lucide-react';
+import { useStore } from '@/store';
 
 const steps = [
   {
@@ -29,6 +30,7 @@ const steps = [
 ];
 
 export default function HowItWorks() {
+  const { state } = useStore();
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -84,7 +86,7 @@ export default function HowItWorks() {
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
             }`}
           >
-            Getting started with BitWealth is quick and easy. Follow these simple 
+            Getting started with {state.siteSettings?.siteName || 'BitWealth'} is quick and easy. Follow these simple 
             steps to begin your cryptocurrency investment journey.
           </p>
         </div>

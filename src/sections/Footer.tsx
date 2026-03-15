@@ -130,12 +130,11 @@ export default function Footer() {
                   <span className="text-crypto-dark font-bold text-xl md:text-2xl">₿</span>
                 </div>
                 <span className="text-xl md:text-2xl font-display font-bold text-white">
-                  BitWealth
+                  {state.siteSettings?.siteName || 'BitWealth'}
                 </span>
               </Link>
               <p className="text-gray-400 text-sm mb-4 md:mb-6 max-w-sm leading-relaxed">
-                Your trusted partner in cryptocurrency investment. We provide a secure, 
-                transparent, and profitable platform for growing your digital assets.
+                {state.siteSettings?.siteDescription || 'Your trusted partner in cryptocurrency investment. We provide a secure, transparent, and profitable platform for growing your digital assets.'}
               </p>
               {/* Contact info */}
               <div className="space-y-2 md:space-y-3">
@@ -233,7 +232,7 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-xs md:text-sm text-gray-500 text-center md:text-left">
-              © 2021-{new Date().getFullYear()} BitWealth. All rights reserved.
+              © 2021-{new Date().getFullYear()} {state.siteSettings?.siteName || 'BitWealth'}. All rights reserved.
             </p>
             
             {/* Social Links */}

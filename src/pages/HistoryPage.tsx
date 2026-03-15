@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useStore } from '@/store';
 import Header from '@/sections/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,17 +11,17 @@ export default function HistoryPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
 
-  // Sample transactions (in a real app, these would come from the store)
-  const allTransactions = [
-    { id: 'tx-1', type: 'deposit', amount: 1000, status: 'approved', date: '2024-01-15 10:30', method: 'Bitcoin' },
-    { id: 'tx-2', type: 'investment', amount: 500, status: 'approved', date: '2024-01-14 14:20', plan: 'Gold Plan' },
-    { id: 'tx-3', type: 'return', amount: 75, status: 'approved', date: '2024-01-13 09:00', plan: 'Gold Plan' },
-    { id: 'tx-4', type: 'withdrawal', amount: 200, status: 'pending', date: '2024-01-12 16:45', method: 'USDT' },
-    { id: 'tx-5', type: 'deposit', amount: 2500, status: 'approved', date: '2024-01-10 11:15', method: 'Ethereum' },
-    { id: 'tx-6', type: 'investment', amount: 2000, status: 'approved', date: '2024-01-09 13:30', plan: 'Standard Plan' },
-    { id: 'tx-7', type: 'return', amount: 40, status: 'approved', date: '2024-01-08 08:00', plan: 'Standard Plan' },
-    { id: 'tx-8', type: 'bonus', amount: 100, status: 'approved', date: '2024-01-05 15:00', description: 'Referral Bonus' },
-  ];
+  const { state } = useStore();
+  const user = state.user;
+  const allTransactions = (state.transactions || []).map(tx => ({
+    id: tx.id,
+    type: tx.type,
+    amount: tx.amount,
+    status: tx.status,
+    date: new Date(tx.createdAt).toLocaleString(),
+    method: tx.method,
+    description: tx.description
+  }));
 
   const filteredTransactions = activeTab === 'all' 
     ? allTransactions 
@@ -101,25 +102,39 @@ export default function HistoryPage() {
             <Card className="bg-crypto-card border-crypto-border">
               <CardContent className="p-4">
                 <p className="text-sm text-gray-400">Total Deposits</p>
-                <p className="text-xl font-bold text-green-500">+$3,500</p>
+                <p className="text-xl font-bold text-green-500">
+                  +${(state.transactions || [])
+                    .filter(t => t.type === 'deposit' && t.status === 'approved')
+                    .reduce((sum, t) => sum + t.amount, 0)
+                    .toLocaleString()}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-crypto-card border-crypto-border">
               <CardContent className="p-4">
                 <p className="text-sm text-gray-400">Total Withdrawals</p>
-                <p className="text-xl font-bold text-red-500">-$200</p>
+                <p className="text-xl font-bold text-red-500">
+                  -${(state.transactions || [])
+                    .filter(t => t.type === 'withdrawal' && t.status === 'approved')
+                    .reduce((sum, t) => sum + t.amount, 0)
+                    .toLocaleString()}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-crypto-card border-crypto-border">
               <CardContent className="p-4">
                 <p className="text-sm text-gray-400">Total Invested</p>
-                <p className="text-xl font-bold text-crypto-yellow">$2,500</p>
+                <p className="text-xl font-bold text-crypto-yellow">
+                  ${user?.totalInvested?.toLocaleString() || '0'}
+                </p>
               </CardContent>
             </Card>
             <Card className="bg-crypto-card border-crypto-border">
               <CardContent className="p-4">
                 <p className="text-sm text-gray-400">Total Returns</p>
-                <p className="text-xl font-bold text-green-500">+$215</p>
+                <p className="text-xl font-bold text-green-500">
+                  +${user?.totalReturns?.toLocaleString() || '0'}
+                </p>
               </CardContent>
             </Card>
           </div>

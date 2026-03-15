@@ -1,22 +1,40 @@
 import { useNavigate } from 'react-router-dom';
+import { useStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, TrendingUp, Shield, Zap, Users, Award } from 'lucide-react';
 
-const stats = [
-  { value: '$50M+', label: 'Total Invested', icon: TrendingUp },
-  { value: '25K+', label: 'Active Investors', icon: Users },
-  { value: '99.9%', label: 'Uptime', icon: Shield },
-  { value: '20%', label: 'Max Daily Return', icon: Zap },
-];
+export default function Hero() {
+  const navigate = useNavigate();
+  const { state } = useStore();
+
+  const stats = [
+    { 
+      value: `${state.siteSettings?.stats?.totalInvested || 50}${state.siteSettings?.stats?.totalInvestedSuffix || 'M+'}`, 
+      label: 'Total Invested', 
+      icon: TrendingUp 
+    },
+    { 
+      value: `${state.siteSettings?.stats?.activeInvestors || 25}${state.siteSettings?.stats?.activeInvestorsSuffix || 'K+'}`, 
+      label: 'Active Investors', 
+      icon: Users 
+    },
+    { 
+      value: `${state.siteSettings?.stats?.uptime || 99.9}${state.siteSettings?.stats?.uptimeSuffix || '%'}`, 
+      label: 'Uptime', 
+      icon: Shield 
+    },
+    { 
+      value: '20%', 
+      label: 'Max Daily Return', 
+      icon: Zap 
+    },
+  ];
 
 const features = [
   { icon: Shield, text: 'Bank-Grade Security' },
   { icon: Zap, text: 'Instant Withdrawals' },
   { icon: Award, text: 'Licensed & Regulated' },
 ];
-
-export default function Hero() {
-  const navigate = useNavigate();
 
   return (
     <section className="relative min-h-screen flex flex-col justify-center overflow-hidden bg-crypto-dark">
@@ -44,7 +62,7 @@ export default function Hero() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-crypto-yellow/10 border border-crypto-yellow/30 mb-8">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             <span className="text-sm text-crypto-yellow font-medium">
-              Trusted by 25,000+ investors worldwide
+              Trusted by {state.siteSettings?.stats?.activeInvestors || 25}{state.siteSettings?.stats?.activeInvestorsSuffix || 'K+'} investors worldwide
             </span>
           </div>
 

@@ -1,32 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrendingUp, Users, DollarSign, Activity } from 'lucide-react';
-
-const stats = [
-  {
-    icon: DollarSign,
-    value: 50,
-    suffix: 'M+',
-    label: 'Total Invested',
-  },
-  {
-    icon: Users,
-    value: 25,
-    suffix: 'K+',
-    label: 'Active Investors',
-  },
-  {
-    icon: TrendingUp,
-    value: 12,
-    suffix: 'M+',
-    label: 'Total Returns',
-  },
-  {
-    icon: Activity,
-    value: 99.9,
-    suffix: '%',
-    label: 'Uptime',
-  },
-];
+import { useStore } from '@/store';
 
 function AnimatedCounter({ 
   value, 
@@ -69,8 +43,36 @@ function AnimatedCounter({
 }
 
 export default function Statistics() {
+  const { state } = useStore();
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+
+  const stats = [
+    {
+      icon: DollarSign,
+      value: state.siteSettings?.stats?.totalInvested || 50,
+      suffix: state.siteSettings?.stats?.totalInvestedSuffix || 'M+',
+      label: 'Total Invested',
+    },
+    {
+      icon: Users,
+      value: state.siteSettings?.stats?.activeInvestors || 25,
+      suffix: state.siteSettings?.stats?.activeInvestorsSuffix || 'K+',
+      label: 'Active Investors',
+    },
+    {
+      icon: TrendingUp,
+      value: state.siteSettings?.stats?.totalReturns || 12,
+      suffix: state.siteSettings?.stats?.totalReturnsSuffix || 'M+',
+      label: 'Total Returns',
+    },
+    {
+      icon: Activity,
+      value: state.siteSettings?.stats?.uptime || 99.9,
+      suffix: state.siteSettings?.stats?.uptimeSuffix || '%',
+      label: 'Uptime',
+    },
+  ];
 
   useEffect(() => {
     const observer = new IntersectionObserver(

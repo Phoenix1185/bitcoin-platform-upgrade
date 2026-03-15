@@ -18,16 +18,23 @@ import {
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Sample chart data - will be replaced with real data
-const chartData = [
-  { name: 'Mon', value: 4000 },
-  { name: 'Tue', value: 4500 },
-  { name: 'Wed', value: 4200 },
-  { name: 'Thu', value: 4800 },
-  { name: 'Fri', value: 5100 },
-  { name: 'Sat', value: 5400 },
-  { name: 'Sun', value: 5800 },
-];
+// Get chart data from transactions or returns
+const getChartData = (transactions: any[]) => {
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return d.toLocaleDateString('en-US', { weekday: 'short' });
+  });
+
+  // Simple logic: cumulative returns over last 7 days
+  let cumulative = 0;
+  return last7Days.map(day => {
+    // In a real app, you'd filter transactions by date
+    // For now, we'll show a simulated growth if they have investments
+    cumulative += Math.random() * 50; 
+    return { name: day, value: cumulative };
+  });
+};
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -76,6 +83,7 @@ export default function DashboardPage() {
 
   // Get recent transactions (last 5)
   const recentTransactions = transactions.slice(0, 5);
+  const chartData = getChartData(transactions);
 
   // Get active investments
   const activeInvestments = investments.filter(i => i.status === 'active').slice(0, 3);

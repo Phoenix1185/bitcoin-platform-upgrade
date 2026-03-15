@@ -198,7 +198,7 @@ export default function ProfilePage() {
           {/* Profile Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-display font-bold text-white mb-2">
-              My <span className="text-gradient">Profile</span>
+              My <span className="text-gradient">Account</span>
             </h1>
             <p className="text-gray-400">Manage your account settings and preferences</p>
           </div>

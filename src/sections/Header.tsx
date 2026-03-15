@@ -59,7 +59,7 @@ export default function Header() {
               <span className="text-crypto-dark font-bold text-xl">₿</span>
             </div>
             <span className="text-xl font-display font-bold text-white group-hover:text-crypto-yellow transition-colors">
-              BitWealth
+              {state.siteSettings?.siteName || 'BitWealth'}
             </span>
           </Link>
 

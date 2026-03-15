@@ -58,7 +58,7 @@ export default function InvestmentPlansSection() {
             Choose Your <span className="text-gradient">Investment Strategy</span>
           </h2>
           <p 
-            className={`text-base md:text-lg text-gray-400 max-w-2xl mx-auto px-4 transition-all duration-700 delay-200 ${
+            className={`text-lg text-gray-400 max-w-2xl mx-auto px-4 transition-all duration-700 delay-200 ${
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
             }`}
           >
