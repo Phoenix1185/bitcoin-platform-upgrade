@@ -10,7 +10,8 @@ import {
   Maximize2,
   Headphones,
   Bot,
-  User as UserIcon
+  User as UserIcon,
+  ChevronDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { LiveChatMessage, LiveChatSession } from '@/types/support';
@@ -19,6 +20,8 @@ export default function LiveChat() {
   const { state } = useStore();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  // Controls whether the floating button is collapsed (icon-only) or expanded (icon + label)
+  const [isButtonCollapsed, setIsButtonCollapsed] = useState(false);
   const [session, setSession] = useState<LiveChatSession | null>(null);
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -38,7 +41,8 @@ export default function LiveChat() {
       return;
     }
 
-    // Simulate starting a chat session
+    const siteName = state.siteSettings?.siteName || 'BitWealth';
+
     const newSession: LiveChatSession = {
       id: `CHAT-${Date.now()}`,
       userId: state.user.id,
@@ -50,9 +54,9 @@ export default function LiveChat() {
         {
           id: `MSG-${Date.now()}`,
           userId: 'bot',
-          userName: 'BitWealth Bot',
+          userName: `${siteName} Bot`,
           userRole: 'bot',
-          message: '👋 Hello! Welcome to BitWealth support.\n\nI\'m here to help you with:\n• Account questions\n• Deposit/Withdrawal issues\n• Investment plans\n• Technical support\n\nWhat can I help you with today?',
+          message: `👋 Hello! Welcome to ${siteName} support.\n\nI'm here to help you with:\n• Account questions\n• Deposit/Withdrawal issues\n• Investment plans\n• Technical support\n\nWhat can I help you with today?`,
           createdAt: new Date().toISOString(),
           isRead: true,
         },
@@ -60,6 +64,7 @@ export default function LiveChat() {
     };
     setSession(newSession);
     setIsOpen(true);
+    setIsButtonCollapsed(false);
   };
 
   const sendMessage = async () => {
@@ -81,14 +86,13 @@ export default function LiveChat() {
     });
     setMessage('');
 
-    // Simulate bot response
     setIsTyping(true);
     setTimeout(() => {
       const botResponse = getBotResponse(message.trim());
       const botMessage: LiveChatMessage = {
         id: `MSG-${Date.now() + 1}`,
         userId: 'bot',
-        userName: 'BitWealth Bot',
+        userName: `${state.siteSettings?.siteName || 'BitWealth'} Bot`,
         userRole: 'bot',
         message: botResponse,
         createdAt: new Date().toISOString(),
@@ -104,32 +108,27 @@ export default function LiveChat() {
 
   const getBotResponse = (userMessage: string): string => {
     const lowerMsg = userMessage.toLowerCase();
-    
+    const siteName = state.siteSettings?.siteName || 'BitWealth';
+
     if (lowerMsg.includes('deposit') || lowerMsg.includes('add money')) {
       return 'To make a deposit:\n1. Go to your Dashboard\n2. Click "Deposit"\n3. Choose your preferred cryptocurrency\n4. Send funds to the provided address\n5. Your deposit will be credited after confirmation\n\nNeed help with a specific deposit issue?';
     }
-    
     if (lowerMsg.includes('withdraw') || lowerMsg.includes('withdrawal')) {
       return 'To withdraw funds:\n1. Go to your Dashboard\n2. Click "Withdraw"\n3. Enter the amount and your wallet address\n4. Submit your request\n5. Withdrawals are processed within 24-48 hours\n\nMinimum withdrawal: $50';
     }
-    
     if (lowerMsg.includes('invest') || lowerMsg.includes('plan')) {
-      return 'We offer 5 investment plans:\n• Basic: $100-$999 (5% daily)\n• Standard: $1,000-$4,999 (8% daily)\n• Gold: $5,000-$24,999 (12% daily)\n• Platinum: $25,000-$49,999 (15% daily)\n• Diamond: $50,000+ (20% daily)\n\nVisit the Investment Plans page for more details!';
+      return 'We offer multiple investment plans tailored to your goals.\n\nVisit the Investment Plans page for full details on returns, durations, and minimum amounts!';
     }
-    
     if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
       return 'Hello! 👋 How can I assist you today?';
     }
-    
     if (lowerMsg.includes('contact') || lowerMsg.includes('support') || lowerMsg.includes('agent')) {
-      return 'You can reach our support team:\n\n📧 Email: support@bitwealth.com\n📞 Phone: +1 (555) 123-4567\n🎫 Tickets: Submit a ticket from your dashboard\n\nOur support hours: 24/7';
+      return `You can reach our support team:\n\n📧 Email: support@${siteName.toLowerCase().replace(/\s/g, '')}.com\n🎫 Tickets: Submit a ticket from your dashboard\n\nOur support hours: 24/7`;
     }
-    
     if (lowerMsg.includes('kyc') || lowerMsg.includes('verify') || lowerMsg.includes('verification')) {
       return 'KYC verification is required for withdrawals over $1,000.\n\nTo verify your account:\n1. Go to Profile → KYC Verification\n2. Upload a valid ID (Passport/Driver\'s License)\n3. Upload a proof of address\n4. Submit for review\n\nVerification takes 1-2 business days.';
     }
-    
-    return 'I understand. For more specific assistance, I can connect you with a human support agent or you can:\n\n• Create a support ticket for complex issues\n• Check our FAQ page for common questions\n• Email us at support@bitwealth.com\n\nIs there anything else I can help with?';
+    return 'I understand. For more specific assistance, I can connect you with a human support agent or you can:\n\n• Create a support ticket for complex issues\n• Check our FAQ page for common questions\n\nIs there anything else I can help with?';
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -139,23 +138,46 @@ export default function LiveChat() {
     }
   };
 
+  // ─── Floating Button (chat not open) ───────────────────────────────────────
   if (!isOpen) {
     return (
-      <button
-        onClick={startChat}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-crypto-yellow text-crypto-dark px-4 py-3 rounded-full shadow-lg hover:bg-crypto-yellow-light transition-all duration-300 hover:scale-105"
-      >
-        <MessageCircle className="w-5 h-5" />
-        <span className="font-medium text-sm">Live Chat</span>
-      </button>
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+        {/* Collapse/Expand toggle — small arrow button above the main button */}
+        <button
+          onClick={() => setIsButtonCollapsed(!isButtonCollapsed)}
+          className="w-6 h-6 bg-crypto-card border border-crypto-border rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors shadow"
+          title={isButtonCollapsed ? 'Expand chat button' : 'Collapse chat button'}
+        >
+          <ChevronDown
+            className={`w-3 h-3 transition-transform duration-300 ${isButtonCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {/* Main chat button */}
+        <button
+          onClick={startChat}
+          className={`flex items-center gap-2 bg-crypto-yellow text-crypto-dark rounded-full shadow-lg hover:bg-crypto-yellow-light transition-all duration-300 hover:scale-105 ${
+            isButtonCollapsed ? 'w-12 h-12 justify-center p-0' : 'px-4 py-3'
+          }`}
+          title="Live Chat"
+        >
+          <MessageCircle className="w-5 h-5 flex-shrink-0" />
+          {!isButtonCollapsed && (
+            <span className="font-medium text-sm whitespace-nowrap">Live Chat</span>
+          )}
+        </button>
+      </div>
     );
   }
 
+  // ─── Chat Window ────────────────────────────────────────────────────────────
+  const siteName = state.siteSettings?.siteName || 'BitWealth';
+
   return (
-    <div 
+    <div
       className={`fixed right-6 z-50 bg-crypto-card border border-crypto-border rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${
-        isMinimized 
-          ? 'bottom-6 w-72 h-14' 
+        isMinimized
+          ? 'bottom-6 w-72 h-14'
           : 'bottom-6 w-80 md:w-96 h-[500px]'
       }`}
     >
@@ -166,7 +188,7 @@ export default function LiveChat() {
             <Headphones className="w-4 h-4 text-crypto-yellow" />
           </div>
           <div>
-            <p className="font-medium text-crypto-dark text-sm">BitWealth Support</p>
+            <p className="font-medium text-crypto-dark text-sm">{siteName} Support</p>
             <p className="text-xs text-crypto-dark/70">
               {session?.status === 'waiting' ? 'Waiting for agent...' : 'Online'}
             </p>
@@ -176,6 +198,7 @@ export default function LiveChat() {
           <button
             onClick={() => setIsMinimized(!isMinimized)}
             className="p-1 hover:bg-crypto-dark/20 rounded transition-colors"
+            title={isMinimized ? 'Expand' : 'Minimize'}
           >
             {isMinimized ? (
               <Maximize2 className="w-4 h-4 text-crypto-dark" />
@@ -186,6 +209,7 @@ export default function LiveChat() {
           <button
             onClick={() => setIsOpen(false)}
             className="p-1 hover:bg-crypto-dark/20 rounded transition-colors"
+            title="Close"
           >
             <X className="w-4 h-4 text-crypto-dark" />
           </button>
@@ -199,13 +223,11 @@ export default function LiveChat() {
             {session?.messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex gap-2 ${
-                  msg.userRole === 'user' ? 'flex-row-reverse' : ''
-                }`}
+                className={`flex gap-2 ${msg.userRole === 'user' ? 'flex-row-reverse' : ''}`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  msg.userRole === 'bot' 
-                    ? 'bg-purple-500/20' 
+                  msg.userRole === 'bot'
+                    ? 'bg-purple-500/20'
                     : msg.userRole === 'user'
                     ? 'bg-crypto-yellow/20'
                     : 'bg-blue-500/20'
@@ -218,16 +240,12 @@ export default function LiveChat() {
                     <Headphones className="w-4 h-4 text-blue-400" />
                   )}
                 </div>
-                <div
-                  className={`max-w-[75%] p-3 rounded-2xl text-sm ${
-                    msg.userRole === 'user'
-                      ? 'bg-crypto-yellow text-crypto-dark rounded-br-none'
-                      : 'bg-crypto-card text-white rounded-bl-none'
-                  }`}
-                >
-                  <p className="font-medium text-xs mb-1 opacity-70">
-                    {msg.userName}
-                  </p>
+                <div className={`max-w-[75%] p-3 rounded-2xl text-sm ${
+                  msg.userRole === 'user'
+                    ? 'bg-crypto-yellow text-crypto-dark rounded-br-none'
+                    : 'bg-crypto-card text-white rounded-bl-none'
+                }`}>
+                  <p className="font-medium text-xs mb-1 opacity-70">{msg.userName}</p>
                   <p className="whitespace-pre-line">{msg.message}</p>
                   <p className={`text-[10px] mt-1 ${
                     msg.userRole === 'user' ? 'text-crypto-dark/60' : 'text-gray-500'
@@ -237,7 +255,7 @@ export default function LiveChat() {
                 </div>
               </div>
             ))}
-            
+
             {isTyping && (
               <div className="flex gap-2">
                 <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
@@ -252,7 +270,7 @@ export default function LiveChat() {
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
 

@@ -194,7 +194,7 @@ function transformProfile(profile: any): User {
   };
 }
 
-// Transform user_metadata to User type (when profile doesn't exist)
+// Transform user_metadata to User type (fast fallback when profile fetch is slow/fails)
 function transformUserMetadata(user: any): User {
   return {
     id: user.id,
@@ -203,7 +203,10 @@ function transformUserMetadata(user: any): User {
     balance: 0,
     totalInvested: 0,
     totalReturns: 0,
-    isAdmin: user.user_metadata?.is_admin || user.email?.toLowerCase() === 'fredokcee1@gmail.com' || false,
+    isAdmin:
+      user.user_metadata?.is_admin ||
+      user.email?.toLowerCase() === 'fredokcee1@gmail.com' ||
+      false,
     isFrozen: false,
     withdrawalFrozen: false,
     createdAt: user.created_at,
@@ -221,38 +224,45 @@ function transformUserMetadata(user: any): User {
   };
 }
 
+// Fetch profile with a hard timeout so login never hangs
+async function fetchProfileWithTimeout(userId: string, timeoutMs = 4000): Promise<any | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+      .abortSignal(controller.signal);
+    clearTimeout(timer);
+    if (error) return null;
+    return data;
+  } catch {
+    clearTimeout(timer);
+    return null;
+  }
+}
+
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  // Initialize auth state from Supabase
+  // Initialize auth state — login immediately from session, then enrich with profile in background
   useEffect(() => {
     const initAuth = async () => {
       try {
-        dispatch({ type: 'SET_LOADING', payload: true });
-        
-        // Get current session
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.user) {
-          // Try to fetch user profile - if it fails, use user_metadata
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
+          // ✅ Step 1: Log in immediately using auth metadata so the UI is never blocked
+          dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
+
+          // ✅ Step 2: Enrich with real profile data in the background (non-blocking)
+          fetchProfileWithTimeout(session.user.id).then((profile) => {
             if (profile) {
-              dispatch({ type: 'LOGIN', payload: transformProfile(profile) });
-            } else {
-              // Use user_metadata if profile doesn't exist
-              dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
+              dispatch({ type: 'UPDATE_USER', payload: transformProfile(profile) });
             }
-          } catch (profileError) {
-            // If profile fetch fails (RLS error), use user_metadata
-            console.log('Profile fetch failed, using user_metadata:', profileError);
-            dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
-          }
+          });
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
@@ -264,24 +274,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    // Listen for auth changes
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
+        // ✅ Login immediately, enrich in background
+        dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
+        fetchProfileWithTimeout(session.user.id).then((profile) => {
           if (profile) {
-            dispatch({ type: 'LOGIN', payload: transformProfile(profile) });
-          } else {
-            dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
+            dispatch({ type: 'UPDATE_USER', payload: transformProfile(profile) });
           }
-        } catch (error) {
-          dispatch({ type: 'LOGIN', payload: transformUserMetadata(session.user) });
-        }
+        });
       } else if (event === 'SIGNED_OUT') {
         dispatch({ type: 'LOGOUT' });
       }
@@ -292,7 +294,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Load site settings
+  // Load site settings (non-blocking, runs independently)
   useEffect(() => {
     const loadSiteSettings = async () => {
       try {
@@ -300,7 +302,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .from('site_settings')
           .select('*')
           .single();
-        
+
         if (settings) {
           dispatch({
             type: 'SET_SITE_SETTINGS',
@@ -330,7 +332,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadSiteSettings();
   }, []);
 
-  // Load user data when authenticated
+  // Load user-specific data after authentication (investments, transactions, notifications)
   useEffect(() => {
     if (!state.isAuthenticated || !state.user) return;
 
@@ -338,17 +340,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     const loadUserData = async () => {
       try {
-        // Load investments
-        const { data: investments } = await supabase
-          .from('investments')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        if (investments) {
+        // Run all three queries in parallel for speed
+        const [investmentsRes, transactionsRes, notificationsRes] = await Promise.allSettled([
+          supabase
+            .from('investments')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('transactions')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false }),
+        ]);
+
+        if (investmentsRes.status === 'fulfilled' && investmentsRes.value.data) {
           dispatch({
             type: 'SET_INVESTMENTS',
-            payload: investments.map((inv) => ({
+            payload: investmentsRes.value.data.map((inv: any) => ({
               id: inv.id,
               userId: inv.user_id,
               planId: inv.plan_id,
@@ -366,40 +380,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        // Load transactions
-        const { data: transactions } = await supabase
-          .from('transactions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        if (transactions) {
+        if (transactionsRes.status === 'fulfilled' && transactionsRes.value.data) {
           dispatch({
             type: 'SET_TRANSACTIONS',
-            payload: transactions.map((tx) => ({
+            payload: transactionsRes.value.data.map((tx: any) => ({
               id: tx.id,
               userId: tx.user_id,
               type: tx.type,
               amount: tx.amount,
               status: tx.status,
               method: tx.method,
-              description: tx.description,
+              notes: tx.notes || tx.description,
               createdAt: tx.created_at,
             })),
           });
         }
 
-        // Load notifications
-        const { data: notifications } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        
-        if (notifications) {
+        if (notificationsRes.status === 'fulfilled' && notificationsRes.value.data) {
           dispatch({
             type: 'SET_NOTIFICATIONS',
-            payload: notifications.map((n) => ({
+            payload: notificationsRes.value.data.map((n: any) => ({
               id: n.id,
               userId: n.user_id,
               type: n.type,
@@ -431,11 +431,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .from('support_tickets')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         if (tickets) {
           dispatch({
             type: 'SET_SUPPORT_TICKETS',
-            payload: tickets.map((t) => ({
+            payload: tickets.map((t: any) => ({
               id: t.id,
               userId: t.user_id,
               userName: t.user_name,
@@ -458,7 +458,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     loadSupportTickets();
   }, [state.user?.isAdmin]);
 
-  // Load blog posts
+  // Load blog posts (public)
   useEffect(() => {
     const loadBlogPosts = async () => {
       try {
@@ -467,11 +467,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           .select('*')
           .eq('status', 'published')
           .order('published_at', { ascending: false });
-        
+
         if (posts) {
           dispatch({
             type: 'SET_BLOG_POSTS',
-            payload: posts.map((p) => ({
+            payload: posts.map((p: any) => ({
               id: p.id,
               title: p.title,
               slug: p.slug,
