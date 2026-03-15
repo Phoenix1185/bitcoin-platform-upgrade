@@ -7,56 +7,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { 
   ArrowLeft, 
-  Users, 
-  Wallet, 
-  CheckCircle, 
-  XCircle, 
-  Lock, 
-  Unlock,
-  Plus,
-  Minus,
   Search,
-  DollarSign,
-  PiggyBank,
-  Activity,
-  Eye,
-  Ban,
-  Edit3,
-  TrendingUp,
   Save,
-  FileText,
-  Link as LinkIcon,
-  Trash2,
-  Facebook,
-  Twitter,
-  Linkedin,
-  Instagram,
-  Youtube,
-  Send,
-  MessageSquare,
-  Mail,
-  Bell,
-  Headphones,
-  CreditCard,
-  Copy,
-  Globe
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { BlogPost, UserNotification, User } from '@/types';
-import { TICKET_CATEGORIES, TICKET_PRIORITIES, TICKET_STATUSES } from '@/types/support';
-import type { SupportTicket, LiveChatSession } from '@/types/support';
-import { DialogDescription } from '@/components/ui/dialog';
+import type { User } from '@/types';
 import { supabase } from '@/lib/supabase';
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const { state, dispatch } = useStore();
+  const { state } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,8 +46,7 @@ export default function AdminPage() {
         
         if (error) throw error;
         if (data) {
-          // Map profiles to User type
-          const mappedUsers: User[] = data.map(profile => ({
+          const mappedUsers: User[] = data.map((profile: any) => ({
             id: profile.id,
             email: profile.email,
             name: profile.name,
@@ -115,7 +80,6 @@ export default function AdminPage() {
     u.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Site settings state (synced with store)
   const [siteStats, setSiteStats] = useState(state.siteSettings?.stats || {
     totalInvested: 0,
     totalInvestedSuffix: 'M+',
@@ -132,7 +96,7 @@ export default function AdminPage() {
       const { error } = await supabase
         .from('site_settings')
         .update({ stats: siteStats })
-        .eq('id', 1); // Assuming ID 1 for global settings
+        .eq('id', 1);
       
       if (error) throw error;
       toast.success('Site statistics updated successfully');
@@ -159,7 +123,11 @@ export default function AdminPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-crypto-dark flex items-center justify-center text-white">Loading Admin Panel...</div>;
+    return (
+      <div className="min-h-screen bg-crypto-dark flex items-center justify-center text-white">
+        Loading Admin Panel...
+      </div>
+    );
   }
 
   return (
@@ -233,12 +201,19 @@ export default function AdminPage() {
                                 onClick={() => handleFreezeAccount(user.id, !user.isFrozen)}
                                 className="border-crypto-border text-white"
                               >
-                                {user.isFrozen ? <Unlock className="w-4 h-4 mr-2" /> : <Lock className="w-4 h-4 mr-2" />}
-                                {user.isFrozen ? 'Unfreeze' : 'Freeze'}
+                                {user.isFrozen
+                                  ? <><Unlock className="w-4 h-4 mr-2" />Unfreeze</>
+                                  : <><Lock className="w-4 h-4 mr-2" />Freeze</>
+                                }
                               </Button>
                             </td>
                           </tr>
                         ))}
+                        {filteredUsers.length === 0 && (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-gray-400">No users found</td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -284,6 +259,40 @@ export default function AdminPage() {
                       <Input 
                         value={siteStats.activeInvestorsSuffix}
                         onChange={(e) => setSiteStats({...siteStats, activeInvestorsSuffix: e.target.value})}
+                        className="bg-crypto-dark border-crypto-border text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Total Returns Value</Label>
+                      <Input 
+                        type="number" 
+                        value={siteStats.totalReturns}
+                        onChange={(e) => setSiteStats({...siteStats, totalReturns: parseFloat(e.target.value)})}
+                        className="bg-crypto-dark border-crypto-border text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Returns Suffix (e.g., M+)</Label>
+                      <Input 
+                        value={siteStats.totalReturnsSuffix}
+                        onChange={(e) => setSiteStats({...siteStats, totalReturnsSuffix: e.target.value})}
+                        className="bg-crypto-dark border-crypto-border text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Uptime Value</Label>
+                      <Input 
+                        type="number" 
+                        value={siteStats.uptime}
+                        onChange={(e) => setSiteStats({...siteStats, uptime: parseFloat(e.target.value)})}
+                        className="bg-crypto-dark border-crypto-border text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Uptime Suffix (e.g., %)</Label>
+                      <Input 
+                        value={siteStats.uptimeSuffix}
+                        onChange={(e) => setSiteStats({...siteStats, uptimeSuffix: e.target.value})}
                         className="bg-crypto-dark border-crypto-border text-white"
                       />
                     </div>

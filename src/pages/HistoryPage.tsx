@@ -20,7 +20,7 @@ export default function HistoryPage() {
     status: tx.status,
     date: new Date(tx.createdAt).toLocaleString(),
     method: tx.method,
-    description: tx.description
+    notes: tx.notes,
   }));
 
   const filteredTransactions = activeTab === 'all' 
@@ -208,7 +208,7 @@ export default function HistoryPage() {
                         </td>
                         <td className="py-4 px-4">
                           <p className="text-gray-400 text-sm">
-                            {tx.plan || tx.method || tx.description || '-'}
+                            {tx.method || tx.notes || '-'}
                           </p>
                         </td>
                         <td className="py-4 px-4">
