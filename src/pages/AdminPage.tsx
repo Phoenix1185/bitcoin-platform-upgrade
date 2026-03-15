@@ -400,7 +400,7 @@ export default function AdminPage() {
   const handleDeleteBlogPost = (postId: string) => {
     if (confirm('Are you sure you want to delete this blog post?')) {
       setBlogPosts(posts => posts.filter(p => p.id !== postId));
-      dispatch({ type: 'DELETE_BLOG_POST', id: postId });
+      dispatch({ type: 'DELETE_BLOG_POST', payload: postId });
       toast.success('Blog post deleted successfully');
     }
   };
@@ -429,7 +429,7 @@ export default function AdminPage() {
         updatedAt: new Date().toISOString(),
       };
       setBlogPosts(posts => posts.map(p => p.id === editingPost.id ? updatedPost : p));
-      dispatch({ type: 'UPDATE_BLOG_POST', id: editingPost.id, payload: updatedPost });
+      dispatch({ type: 'UPDATE_BLOG_POST', payload: updatedPost });
       toast.success('Blog post updated successfully');
     } else {
       const newPost: BlogPost = {

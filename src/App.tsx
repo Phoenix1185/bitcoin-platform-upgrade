@@ -21,7 +21,11 @@ import BlogPostPage from '@/pages/BlogPostPage';
 import GuidesPage from '@/pages/GuidesPage';
 import GuidePage from '@/pages/GuidePage';
 import SupportPage from '@/pages/SupportPage';
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
+import NotFoundPage from '@/pages/NotFoundPage';
 import LiveChat from '@/components/LiveChat';
+import BottomNav from '@/components/BottomNav';
 
 function ProtectedRoute({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) {
   const { state } = useStore();
@@ -64,6 +68,8 @@ function AppRoutes() {
       <Route path="/guides" element={<GuidesPage />} />
       <Route path="/guide" element={<GuidePage />} />
       <Route path="/support" element={<SupportPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/dashboard"
         element={
@@ -112,8 +118,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      {/* Catch all - redirect to home */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 404 Page */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }
@@ -123,6 +129,7 @@ function App() {
     <StoreProvider>
       <Router>
         <AppRoutes />
+        <BottomNav />
         <LiveChat />
         <Toaster position="top-right" richColors />
       </Router>

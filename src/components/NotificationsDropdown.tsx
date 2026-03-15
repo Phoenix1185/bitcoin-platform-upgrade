@@ -72,7 +72,7 @@ export default function NotificationsDropdown() {
         .update({ is_read: true })
         .eq('id', id);
       
-      dispatch({ type: 'MARK_NOTIFICATION_READ', id });
+      dispatch({ type: 'MARK_NOTIFICATION_READ', payload: id });
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
@@ -99,7 +99,7 @@ export default function NotificationsDropdown() {
         .delete()
         .eq('id', id);
       
-      dispatch({ type: 'DELETE_NOTIFICATION', id });
+      dispatch({ type: 'DELETE_NOTIFICATION', payload: id });
     } catch (error) {
       console.error('Error deleting notification:', error);
     }

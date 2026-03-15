@@ -98,16 +98,16 @@ export default function DepositPage() {
     const depositRequest = {
       id: 'dep-' + Date.now(),
       userId: state.user!.id,
-      userName: state.user!.name,
-      userEmail: state.user!.email,
+      type: 'deposit' as const,
       amount: depositAmount,
-      method: selectedMethod.name,
       status: 'pending' as const,
+      method: selectedMethod.name,
+      address: txHash,
+      description: `Deposit via ${selectedMethod.name}`,
       createdAt: new Date().toISOString(),
-      txHash: txHash,
     };
 
-    dispatch({ type: 'ADD_DEPOSIT_REQUEST', payload: depositRequest });
+    dispatch({ type: 'ADD_TRANSACTION', payload: depositRequest });
 
     toast.success('Deposit request submitted successfully! It will be processed shortly.');
     setAmount('');

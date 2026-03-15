@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { SUPPORTED_CURRENCIES } from '@/lib/cryptoPrices';
+import { supabase } from '@/lib/supabase';
 import { 
   User, 
   Mail, 
@@ -26,7 +27,9 @@ import {
   CheckCircle,
   XCircle,
   Upload,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -50,6 +53,19 @@ export default function ProfilePage() {
     smsNotifications: state.user?.smsNotifications ?? false,
     twoFactorEnabled: state.user?.twoFactorEnabled ?? false,
   });
+
+  // Password change state
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Update active tab when URL changes
   useEffect(() => {
@@ -112,6 +128,52 @@ export default function ProfilePage() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleChangePassword = async () => {
+    // Validate passwords
+    if (!passwordData.currentPassword) {
+      toast.error('Please enter your current password');
+      return;
+    }
+    if (!passwordData.newPassword) {
+      toast.error('Please enter a new password');
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters');
+      return;
+    }
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // Update password using Supabase
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        setIsChangingPassword(false);
+        return;
+      }
+
+      toast.success('Password changed successfully!');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to change password');
+    }
+
+    setIsChangingPassword(false);
   };
 
   const getKycStatusBadge = () => {
@@ -554,16 +616,75 @@ export default function ProfilePage() {
                         />
                       </div>
 
-                      <div className="p-4 bg-crypto-dark rounded-lg">
-                        <p className="text-white font-medium mb-2">Change Password</p>
-                        <p className="text-gray-400 text-sm mb-4">Update your password regularly for security</p>
-                        <Button 
-                          variant="outline"
-                          onClick={() => toast.info('Password change coming soon')}
-                          className="border-crypto-border text-white hover:bg-crypto-dark"
-                        >
-                          Change Password
-                        </Button>
+                      <div className="p-4 bg-crypto-dark rounded-lg space-y-4">
+                        <div>
+                          <p className="text-white font-medium mb-1">Change Password</p>
+                          <p className="text-gray-400 text-sm">Update your password regularly for security</p>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <Input
+                              type={showPasswords.current ? 'text' : 'password'}
+                              placeholder="Current Password"
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                              className="pl-10 pr-10 bg-crypto-card border-crypto-border text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                              {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <Input
+                              type={showPasswords.new ? 'text' : 'password'}
+                              placeholder="New Password (min 6 characters)"
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                              className="pl-10 pr-10 bg-crypto-card border-crypto-border text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                              {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <Input
+                              type={showPasswords.confirm ? 'text' : 'password'}
+                              placeholder="Confirm New Password"
+                              value={passwordData.confirmPassword}
+                              onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                              className="pl-10 pr-10 bg-crypto-card border-crypto-border text-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                              {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          
+                          <Button 
+                            onClick={handleChangePassword}
+                            disabled={isChangingPassword}
+                            className="w-full bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
+                          >
+                            {isChangingPassword ? 'Changing...' : 'Change Password'}
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="p-4 bg-crypto-dark rounded-lg border border-red-500/30">

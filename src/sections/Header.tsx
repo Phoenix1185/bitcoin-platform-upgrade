@@ -3,19 +3,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useStore } from '@/store';
 import { Button } from '@/components/ui/button';
 import NotificationsDropdown from '@/components/NotificationsDropdown';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Menu, X, User, Wallet, LogOut, ChevronDown, LayoutDashboard, Shield } from 'lucide-react';
+import { Menu, X, User, LogOut, Shield } from 'lucide-react';
 
 export default function Header() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { state, dispatch } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -49,22 +41,13 @@ export default function Header() {
   };
 
   return (
-    <>
-      {/* Dark overlay for dropdown */}
-      {isDropdownOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md transition-all duration-300"
-          onClick={() => setIsDropdownOpen(false)}
-        />
-      )}
-      
-      <header
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled
-            ? 'py-3 glass border-b border-crypto-yellow/20'
-            : 'py-5 bg-transparent'
-        }`}
-      >
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        isScrolled
+          ? 'py-3 glass border-b border-crypto-yellow/20'
+          : 'py-5 bg-transparent'
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo */}
@@ -80,7 +63,7 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Desktop Navigation - Hidden when logged in (Binance style) */}
+          {/* Desktop Navigation - Only when NOT logged in */}
           {!state.isAuthenticated && (
             <nav className="hidden lg:flex items-center gap-6">
               {navLinks.map((link) => (
@@ -105,72 +88,46 @@ export default function Header() {
           )}
 
           {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center gap-4">
+          <div className="hidden lg:flex items-center gap-3">
             {state.isAuthenticated ? (
               <>
-                {/* Notifications Dropdown - Exchange Style */}
+                {/* Notifications Bell */}
                 <NotificationsDropdown />
                 
-                {/* Simple User Menu - Binance Style */}
-                <DropdownMenu onOpenChange={setIsDropdownOpen}>
-                  <DropdownMenuTrigger asChild>
+                {/* User Info & Logout */}
+                <div className="flex items-center gap-3 pl-3 border-l border-crypto-border">
+                  <Link 
+                    to="/profile" 
+                    className="flex items-center gap-2 text-white hover:text-crypto-yellow transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-crypto-yellow/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-crypto-yellow" />
+                    </div>
+                    <span className="max-w-[100px] truncate text-sm">{state.user?.name}</span>
+                  </Link>
+                  
+                  {state.user?.isAdmin && (
                     <Button
                       variant="ghost"
-                      className="flex items-center gap-2 text-white hover:text-crypto-yellow hover:bg-crypto-card"
+                      size="sm"
+                      onClick={() => navigate('/admin')}
+                      className="text-crypto-yellow hover:bg-crypto-yellow/10"
                     >
-                      <div className="w-8 h-8 rounded-full bg-crypto-yellow/20 flex items-center justify-center">
-                        <User className="w-4 h-4 text-crypto-yellow" />
-                      </div>
-                      <span className="max-w-[100px] truncate hidden sm:block">{state.user?.name}</span>
-                      <ChevronDown className="w-4 h-4" />
+                      <Shield className="w-4 h-4 mr-1" />
+                      Admin
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 bg-[#1a1d24] border border-crypto-border shadow-2xl z-[100]" style={{ backgroundColor: '#1a1d24' }}>
-                    <div className="px-4 py-3 border-b border-crypto-border bg-crypto-dark/50">
-                      <p className="text-sm font-semibold text-white">{state.user?.name}</p>
-                      <p className="text-xs text-gray-400">{state.user?.email}</p>
-                      <p className="text-xs text-crypto-yellow mt-1 font-medium">
-                        Balance: ${state.user?.balance.toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="py-1">
-                      <DropdownMenuItem
-                        onClick={() => navigate('/dashboard')}
-                        className="mx-2 text-gray-300 focus:text-white focus:bg-crypto-border cursor-pointer rounded-md"
-                      >
-                        <LayoutDashboard className="w-4 h-4 mr-3 text-crypto-yellow" />
-                        Dashboard
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => navigate('/profile')}
-                        className="mx-2 text-gray-300 focus:text-white focus:bg-crypto-border cursor-pointer rounded-md"
-                      >
-                        <User className="w-4 h-4 mr-3 text-crypto-yellow" />
-                        Profile & Settings
-                      </DropdownMenuItem>
-                    </div>
-                    {state.user?.isAdmin && (
-                      <>
-                        <DropdownMenuSeparator className="bg-crypto-border mx-2" />
-                        <DropdownMenuItem
-                          onClick={() => navigate('/admin')}
-                          className="mx-2 text-crypto-yellow focus:text-crypto-yellow focus:bg-crypto-border cursor-pointer rounded-md"
-                        >
-                          <Shield className="w-4 h-4 mr-3" />
-                          Admin Panel
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    <DropdownMenuSeparator className="bg-crypto-border mx-2" />
-                    <DropdownMenuItem
-                      onClick={handleLogout}
-                      className="mx-2 text-red-400 focus:text-red-400 focus:bg-crypto-border cursor-pointer rounded-md"
-                    >
-                      <LogOut className="w-4 h-4 mr-3" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  )}
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  >
+                    <LogOut className="w-4 h-4 mr-1" />
+                    Logout
+                  </Button>
+                </div>
               </>
             ) : (
               <>
@@ -191,17 +148,32 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 text-white"
-          >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile Menu Button - Only when NOT logged in */}
+          {!state.isAuthenticated && (
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 text-white"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          )}
+
+          {/* Mobile - When logged in, show only notifications and menu */}
+          {state.isAuthenticated && (
+            <div className="lg:hidden flex items-center gap-3">
+              <NotificationsDropdown />
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 text-white"
+              >
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
+        {/* Mobile Menu - Only when NOT logged in */}
+        {!state.isAuthenticated && isMobileMenuOpen && (
           <div className="lg:hidden mt-4 pb-4 border-t border-crypto-border animate-slide-down">
             <nav className="flex flex-col gap-2 mt-4">
               {navLinks.map((link) => (
@@ -220,81 +192,65 @@ export default function Header() {
               ))}
             </nav>
             <div className="mt-4 pt-4 border-t border-crypto-border flex flex-col gap-2">
-              {state.isAuthenticated ? (
-                <>
-                  <div className="px-4 py-2 text-gray-400 text-sm">
-                    Signed in as <span className="text-white">{state.user?.name}</span>
-                  </div>
-                  <Link
-                    to="/dashboard"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-4 py-2 text-gray-300 hover:text-white flex items-center gap-2"
-                  >
-                    <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
-                  </Link>
-                  <Link
-                    to="/deposit"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-4 py-2 text-gray-300 hover:text-white flex items-center gap-2"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    Deposit
-                  </Link>
-                  <Link
-                    to="/withdraw"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-4 py-2 text-gray-300 hover:text-white flex items-center gap-2"
-                  >
-                    <Wallet className="w-4 h-4" />
-                    Withdraw
-                  </Link>
-                  {state.user?.isAdmin && (
-                    <Link
-                      to="/admin"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-4 py-2 text-crypto-yellow flex items-center gap-2"
-                    >
-                      <Shield className="w-4 h-4" />
-                      Admin Panel
-                    </Link>
-                  )}
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 text-red-400 flex items-center gap-2 text-left"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      navigate('/login');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="justify-start text-white hover:text-crypto-yellow"
-                  >
-                    Sign In
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      navigate('/register');
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
-                  >
-                    Get Started
-                  </Button>
-                </>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  navigate('/login');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="justify-start text-white hover:text-crypto-yellow"
+              >
+                Sign In
+              </Button>
+              <Button
+                onClick={() => {
+                  navigate('/register');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
+              >
+                Get Started
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Menu - When logged in */}
+        {state.isAuthenticated && isMobileMenuOpen && (
+          <div className="lg:hidden mt-4 pb-4 border-t border-crypto-border animate-slide-down">
+            <div className="flex flex-col gap-2 mt-4">
+              <div className="px-4 py-2 text-gray-400 text-sm">
+                Signed in as <span className="text-white">{state.user?.name}</span>
+              </div>
+              <Link
+                to="/profile"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-gray-300 hover:text-white flex items-center gap-2"
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </Link>
+              {state.user?.isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-4 py-2 text-crypto-yellow flex items-center gap-2"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin Panel
+                </Link>
               )}
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-red-400 flex items-center gap-2 text-left"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
             </div>
           </div>
         )}
       </div>
     </header>
-    </>
   );
 }

@@ -117,17 +117,17 @@ export interface BlogPost {
 }
 
 export interface SiteSettings {
-  siteName: string;
-  siteDescription: string;
-  contactEmail: string;
-  contactPhone: string;
-  contactAddress: string;
-  socialLinks: {
+  siteName?: string;
+  siteDescription?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  contactAddress?: string;
+  socialLinks?: {
     name: string;
     url: string;
     icon: string;
   }[];
-  stats: {
+  stats?: {
     totalInvested: number;
     totalInvestedSuffix: string;
     activeInvestors: number;
@@ -137,7 +137,7 @@ export interface SiteSettings {
     uptime: number;
     uptimeSuffix: string;
   };
-  depositAddresses: {
+  depositAddresses?: {
     bitcoin: string;
     ethereum: string;
     usdt: {
@@ -152,7 +152,7 @@ export interface SiteSettings {
     };
     bnb: string;
   };
-  depositMethods: {
+  depositMethods?: {
     bitcoin: { enabled: boolean; minAmount: number; };
     ethereum: { enabled: boolean; minAmount: number; };
     usdt: { enabled: boolean; minAmount: number; networks: string[]; };
@@ -160,17 +160,17 @@ export interface SiteSettings {
     bnb: { enabled: boolean; minAmount: number; };
     bank: { enabled: boolean; minAmount: number; bankName: string; accountName: string; accountNumber: string; routingNumber: string; };
   };
-  withdrawalSettings: {
+  withdrawalSettings?: {
     minAmount: number;
     maxAmount: number;
     processingTime: string;
     fee: number;
     feeType: 'fixed' | 'percentage';
   };
-  globalWithdrawalFrozen: boolean;
-  maintenanceMode: boolean;
-  kycRequired: boolean;
-  kycThreshold: number;
+  globalWithdrawalFrozen?: boolean;
+  maintenanceMode?: boolean;
+  kycRequired?: boolean;
+  kycThreshold?: number;
 }
 
 export interface AuthState {
@@ -222,5 +222,19 @@ export interface EmailCampaign {
   sentAt?: string;
   status: 'draft' | 'sending' | 'sent';
   createdBy: string;
+  createdAt: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  subject: string;
+  message: string;
+  category: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  adminResponse?: string;
   createdAt: string;
 }

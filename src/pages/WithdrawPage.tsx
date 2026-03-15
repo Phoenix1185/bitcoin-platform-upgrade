@@ -91,16 +91,16 @@ export default function WithdrawPage() {
     const withdrawalRequest = {
       id: 'wit-' + Date.now(),
       userId: state.user!.id,
-      userName: state.user!.name,
-      userEmail: state.user!.email,
+      type: 'withdrawal' as const,
       amount: withdrawAmount,
+      status: 'pending' as const,
       method: selectedMethod.name,
       address: address,
-      status: 'pending' as const,
+      description: `Withdrawal via ${selectedMethod.name}`,
       createdAt: new Date().toISOString(),
     };
 
-    dispatch({ type: 'ADD_WITHDRAWAL_REQUEST', payload: withdrawalRequest });
+    dispatch({ type: 'ADD_TRANSACTION', payload: withdrawalRequest });
 
     toast.success('Withdrawal request submitted successfully! It will be processed shortly.');
     setAmount('');

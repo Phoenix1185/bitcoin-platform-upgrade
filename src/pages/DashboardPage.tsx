@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store';
 import Header from '@/sections/Header';
 import { Button } from '@/components/ui/button';
@@ -13,16 +13,12 @@ import {
   DollarSign,
   PiggyBank,
   Activity,
-  LayoutDashboard,
-  User,
-  Settings,
-  History,
-  Shield,
-  Bell
+  Plus,
+  History
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Sample chart data
+// Sample chart data - will be replaced with real data
 const chartData = [
   { name: 'Mon', value: 4000 },
   { name: 'Tue', value: 4500 },
@@ -42,64 +38,50 @@ export default function DashboardPage() {
     setMounted(true);
   }, []);
 
+  // Use real data from store
+  const user = state.user;
+  const investments = state.investments || [];
+  const transactions = state.transactions || [];
+
   const stats = [
     {
       title: 'Total Balance',
-      value: `$${state.user?.balance.toLocaleString() || '0'}`,
+      value: `$${user?.balance?.toLocaleString() || '0'}`,
       icon: Wallet,
-      change: '+12.5%',
+      change: 'Available for withdrawal',
       positive: true,
     },
     {
       title: 'Total Invested',
-      value: `$${state.user?.totalInvested.toLocaleString() || '0'}`,
+      value: `$${user?.totalInvested?.toLocaleString() || '0'}`,
       icon: PiggyBank,
-      change: '+8.2%',
+      change: 'Active investments',
       positive: true,
     },
     {
       title: 'Total Returns',
-      value: `$${state.user?.totalReturns.toLocaleString() || '0'}`,
+      value: `$${user?.totalReturns?.toLocaleString() || '0'}`,
       icon: TrendingUp,
-      change: '+15.3%',
+      change: 'Earnings so far',
       positive: true,
     },
     {
       title: 'Active Investments',
-      value: '3',
+      value: investments.filter(i => i.status === 'active').length.toString(),
       icon: Activity,
-      change: '2 ending soon',
+      change: 'Running plans',
       positive: true,
     },
   ];
 
-  const recentTransactions = [
-    { id: 1, type: 'deposit', amount: 1000, status: 'completed', date: '2024-01-15' },
-    { id: 2, type: 'investment', amount: 500, status: 'completed', date: '2024-01-14' },
-    { id: 3, type: 'return', amount: 75, status: 'completed', date: '2024-01-13' },
-    { id: 4, type: 'withdrawal', amount: 200, status: 'pending', date: '2024-01-12' },
-  ];
+  // Get recent transactions (last 5)
+  const recentTransactions = transactions.slice(0, 5);
 
-  const activeInvestments = [
-    { id: 1, plan: 'Gold Plan', amount: 5000, dailyReturn: 12, daysLeft: 15 },
-    { id: 2, plan: 'Standard Plan', amount: 2000, dailyReturn: 8, daysLeft: 8 },
-    { id: 3, plan: 'Basic Plan', amount: 500, dailyReturn: 5, daysLeft: 5 },
-  ];
-
-  const sidebarLinks = [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { label: 'Investment', href: '/investment-plans', icon: TrendingUp },
-    { label: 'Deposit', href: '/deposit', icon: ArrowDownRight },
-    { label: 'Withdraw', href: '/withdraw', icon: ArrowUpRight },
-    { label: 'History', href: '/history', icon: History },
-    { label: 'Profile', href: '/profile', icon: User },
-    { label: 'Account', href: '/profile?tab=account', icon: Shield },
-    { label: 'Settings', href: '/profile?tab=preferences', icon: Settings },
-    { label: 'Notifications', href: '/profile?tab=notifications', icon: Bell },
-  ];
+  // Get active investments
+  const activeInvestments = investments.filter(i => i.status === 'active').slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-crypto-dark">
+    <div className="min-h-screen bg-crypto-dark pb-24 lg:pb-12">
       <Header />
       
       <main className="pt-24 pb-12">
@@ -111,7 +93,7 @@ export default function DashboardPage() {
                 Dashboard
               </h1>
               <p className="text-gray-400 mt-1">
-                Welcome back, {state.user?.name}
+                Welcome back, {user?.name}
               </p>
             </div>
             <div className="flex gap-3">
@@ -133,39 +115,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Main Layout with Sidebar */}
-          <div className="grid lg:grid-cols-4 gap-8">
-            {/* Sidebar Navigation */}
-            <div className="hidden lg:block lg:col-span-1">
-              <Card className="bg-crypto-card border-crypto-border sticky top-24">
-                <CardHeader>
-                  <CardTitle className="text-white text-lg">Navigation</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <nav className="flex flex-col">
-                    {sidebarLinks.map((link) => (
-                      <Link
-                        key={link.href}
-                        to={link.href}
-                        className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-crypto-dark ${
-                          location.pathname === link.href.split('?')[0]
-                            ? 'text-crypto-yellow bg-crypto-yellow/10 border-r-2 border-crypto-yellow'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        <link.icon className="w-4 h-4" />
-                        {link.label}
-                      </Link>
-                    ))}
-                  </nav>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {/* Stats Grid */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Stats Grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {stats.map((stat, index) => (
               <Card 
                 key={stat.title} 
@@ -177,7 +128,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="text-sm text-gray-400 mb-1">{stat.title}</p>
                       <p className="text-2xl font-bold text-white">{stat.value}</p>
-                      <p className={`text-sm mt-2 ${stat.positive ? 'text-green-500' : 'text-red-500'}`}>
+                      <p className={`text-sm mt-2 text-gray-500`}>
                         {stat.change}
                       </p>
                     </div>
@@ -230,38 +181,60 @@ export default function DashboardPage() {
 
             {/* Active Investments */}
             <Card className="bg-crypto-card border-crypto-border">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-white flex items-center gap-2">
                   <PiggyBank className="w-5 h-5 text-crypto-yellow" />
                   Active Investments
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {activeInvestments.map((investment) => (
-                  <div 
-                    key={investment.id} 
-                    className="p-4 rounded-xl bg-crypto-dark border border-crypto-border"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-white">{investment.plan}</span>
-                      <span className="text-crypto-yellow">{investment.dailyReturn}%/day</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400">${investment.amount.toLocaleString()}</span>
-                      <span className="text-gray-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {investment.daysLeft} days left
-                      </span>
-                    </div>
-                  </div>
-                ))}
                 <Button 
-                  variant="outline" 
-                  className="w-full border-crypto-border text-white hover:bg-crypto-dark"
+                  variant="ghost" 
+                  size="sm"
+                  className="text-crypto-yellow hover:text-crypto-yellow-light"
                   onClick={() => navigate('/investment-plans')}
                 >
-                  View All Plans
+                  <Plus className="w-4 h-4" />
                 </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {activeInvestments.length > 0 ? (
+                  activeInvestments.map((investment) => (
+                    <div 
+                      key={investment.id} 
+                      className="p-4 rounded-xl bg-crypto-dark border border-crypto-border"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-white">{investment.planName}</span>
+                        <span className="text-crypto-yellow">{investment.dailyReturn}%/day</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-400">${investment.amount.toLocaleString()}</span>
+                        <span className="text-gray-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {Math.ceil((new Date(investment.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days left
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 mb-4">No active investments yet</p>
+                    <Button 
+                      onClick={() => navigate('/investment-plans')}
+                      className="bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
+                    >
+                      Start Investing
+                    </Button>
+                  </div>
+                )}
+                {activeInvestments.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full border-crypto-border text-white hover:bg-crypto-dark"
+                    onClick={() => navigate('/investment-plans')}
+                  >
+                    View All Plans
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -278,71 +251,82 @@ export default function DashboardPage() {
                 className="text-crypto-yellow hover:text-crypto-yellow-light"
                 onClick={() => navigate('/history')}
               >
+                <History className="w-4 h-4 mr-2" />
                 View All
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-crypto-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Type</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Amount</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Status</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recentTransactions.map((tx) => (
-                      <tr key={tx.id} className="border-b border-crypto-border/50">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                              tx.type === 'deposit' || tx.type === 'return' 
-                                ? 'bg-green-500/20' 
-                                : 'bg-red-500/20'
-                            }`}>
-                              {tx.type === 'deposit' || tx.type === 'return' ? (
-                                <ArrowDownRight className={`w-4 h-4 ${
-                                  tx.type === 'deposit' || tx.type === 'return' 
-                                    ? 'text-green-500' 
-                                    : 'text-red-500'
-                                }`} />
-                              ) : (
-                                <ArrowUpRight className="w-4 h-4 text-red-500" />
-                              )}
-                            </div>
-                            <span className="text-white capitalize">{tx.type}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`font-medium ${
-                            tx.type === 'deposit' || tx.type === 'return' 
-                              ? 'text-green-500' 
-                              : 'text-red-500'
-                          }`}>
-                            {tx.type === 'deposit' || tx.type === 'return' ? '+' : '-'}${tx.amount}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            tx.status === 'completed' 
-                              ? 'bg-green-500/20 text-green-500' 
-                              : 'bg-yellow-500/20 text-yellow-500'
-                          }`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-gray-400">{tx.date}</td>
+              {recentTransactions.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-crypto-border">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Type</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Amount</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Status</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">Date</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {recentTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-b border-crypto-border/50">
+                          <td className="py-4 px-4">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                tx.type === 'deposit' || tx.type === 'return' 
+                                  ? 'bg-green-500/20' 
+                                  : 'bg-red-500/20'
+                              }`}>
+                                {tx.type === 'deposit' || tx.type === 'return' ? (
+                                  <ArrowDownRight className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <ArrowUpRight className="w-4 h-4 text-red-500" />
+                                )}
+                              </div>
+                              <span className="text-white capitalize">{tx.type}</span>
+                            </div>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`font-medium ${
+                              tx.type === 'deposit' || tx.type === 'return' 
+                                ? 'text-green-500' 
+                                : 'text-red-500'
+                            }`}>
+                              {tx.type === 'deposit' || tx.type === 'return' ? '+' : '-'}${tx.amount}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              tx.status === 'approved' 
+                                ? 'bg-green-500/20 text-green-500' 
+                                : tx.status === 'pending'
+                                ? 'bg-yellow-500/20 text-yellow-500'
+                                : 'bg-red-500/20 text-red-500'
+                            }`}>
+                              {tx.status}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 text-gray-400">
+                            {new Date(tx.createdAt).toLocaleDateString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-400 mb-4">No transactions yet</p>
+                  <Button 
+                    onClick={() => navigate('/deposit')}
+                    className="bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
+                  >
+                    Make First Deposit
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
-            </div>
-          </div>
         </div>
       </main>
     </div>
