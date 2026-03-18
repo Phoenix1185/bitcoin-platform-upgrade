@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '@/store';
 import Header from '@/sections/Header';
@@ -6,301 +6,291 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Bitcoin, Wallet, CreditCard, Building2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Bitcoin, Wallet, CreditCard, Building2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
-const withdrawalMethods = [
-  {
-    id: 'bitcoin',
-    name: 'Bitcoin',
-    icon: Bitcoin,
-    minAmount: 50,
-    maxAmount: 50000,
-    processingTime: '10-30 minutes',
-    fee: '1%',
-  },
-  {
-    id: 'ethereum',
-    name: 'Ethereum',
-    icon: Wallet,
-    minAmount: 50,
-    maxAmount: 50000,
-    processingTime: '5-15 minutes',
-    fee: '1%',
-  },
-  {
-    id: 'usdt',
-    name: 'USDT (TRC20)',
-    icon: CreditCard,
-    minAmount: 25,
-    maxAmount: 25000,
-    processingTime: '2-5 minutes',
-    fee: '0.5%',
-  },
-  {
-    id: 'bank',
-    name: 'Bank Transfer',
-    icon: Building2,
-    minAmount: 100,
-    maxAmount: 100000,
-    processingTime: '1-3 business days',
-    fee: '2%',
-  },
-];
+const NETWORK_OPTIONS: Record<string, string[]> = {
+  usdt: ['TRC20', 'ERC20', 'BEP20'],
+  usdc: ['ERC20', 'BEP20', 'Solana'],
+};
 
 export default function WithdrawPage() {
   const navigate = useNavigate();
   const { state, dispatch } = useStore();
-  const [selectedMethod, setSelectedMethod] = useState(withdrawalMethods[0]);
+  const [selectedMethodId, setSelectedMethodId] = useState('bitcoin');
+  const [selectedNetwork, setSelectedNetwork] = useState('TRC20');
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [withdrawalSettings, setWithdrawalSettings] = useState({
+    minAmount: 50, maxAmount: 50000, fee: 1, feeType: 'percentage' as 'fixed' | 'percentage',
+    processingTime: '1-3 business days',
+  });
+  const [globalFrozen, setGlobalFrozen] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const { data } = await supabase.from('site_settings')
+        .select('withdrawal_settings, global_withdrawal_frozen').eq('id', 1).single();
+      if (data) {
+        if (data.withdrawal_settings) setWithdrawalSettings(data.withdrawal_settings);
+        if (data.global_withdrawal_frozen) setGlobalFrozen(data.global_withdrawal_frozen);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const methods = [
+    { id: 'bitcoin', name: 'Bitcoin (BTC)', icon: Bitcoin },
+    { id: 'ethereum', name: 'Ethereum (ETH)', icon: Wallet },
+    { id: 'usdt', name: 'USDT', icon: CreditCard },
+    { id: 'usdc', name: 'USDC', icon: CreditCard },
+    { id: 'bnb', name: 'BNB', icon: Wallet },
+    { id: 'bank', name: 'Bank Transfer', icon: Building2 },
+  ];
+
+  const selectedMethod = methods.find(m => m.id === selectedMethodId) || methods[0];
+  const withdrawAmount = parseFloat(amount || '0');
+  const fee = withdrawalSettings.feeType === 'percentage'
+    ? withdrawAmount * (withdrawalSettings.fee / 100)
+    : withdrawalSettings.fee;
+  const youReceive = Math.max(0, withdrawAmount - fee);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const withdrawAmount = parseFloat(amount);
-    
-    if (withdrawAmount < selectedMethod.minAmount) {
-      toast.error(`Minimum withdrawal amount is $${selectedMethod.minAmount}`);
+
+    if (globalFrozen) {
+      toast.error('Withdrawals are currently suspended. Please contact support.');
       return;
     }
-
-    if (withdrawAmount > selectedMethod.maxAmount) {
-      toast.error(`Maximum withdrawal amount is $${selectedMethod.maxAmount}`);
+    if (state.user?.withdrawalFrozen) {
+      toast.error('Your withdrawal access has been restricted. Please contact support.');
       return;
     }
-
+    if (!withdrawAmount || withdrawAmount < withdrawalSettings.minAmount) {
+      toast.error(`Minimum withdrawal is $${withdrawalSettings.minAmount}`);
+      return;
+    }
+    if (withdrawAmount > withdrawalSettings.maxAmount) {
+      toast.error(`Maximum withdrawal is $${withdrawalSettings.maxAmount}`);
+      return;
+    }
     if (withdrawAmount > (state.user?.balance || 0)) {
       toast.error('Insufficient balance');
       return;
     }
-
-    if (!address) {
-      toast.error('Please enter your withdrawal address');
+    if (!address.trim()) {
+      toast.error('Please enter your wallet address or bank details');
       return;
     }
 
     setIsSubmitting(true);
+    try {
+      const methodLabel = NETWORK_OPTIONS[selectedMethodId]
+        ? `${selectedMethod.name} (${selectedNetwork})`
+        : selectedMethod.name;
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+      const { data, error } = await supabase.from('transactions').insert({
+        user_id: state.user!.id,
+        type: 'withdrawal',
+        amount: withdrawAmount,
+        status: 'pending',
+        method: methodLabel,
+        address: address.trim(),
+        notes: `Fee: $${fee.toFixed(2)} | Net: $${youReceive.toFixed(2)}`,
+      }).select().single();
 
-    // Create withdrawal request
-    const withdrawalRequest = {
-      id: 'wit-' + Date.now(),
-      userId: state.user!.id,
-      type: 'withdrawal' as const,
-      amount: withdrawAmount,
-      status: 'pending' as const,
-      method: selectedMethod.name,
-      address: address,
-      description: `Withdrawal via ${selectedMethod.name}`,
-      createdAt: new Date().toISOString(),
-    };
+      if (error) throw error;
 
-    dispatch({ type: 'ADD_TRANSACTION', payload: withdrawalRequest });
+      // Notify user
+      await supabase.from('notifications').insert({
+        user_id: state.user!.id,
+        type: 'withdrawal',
+        title: 'Withdrawal Request Submitted',
+        message: `Your withdrawal of $${withdrawAmount.toFixed(2)} via ${methodLabel} is pending review. Processing time: ${withdrawalSettings.processingTime}.`,
+        is_read: false,
+      });
 
-    toast.success('Withdrawal request submitted successfully! It will be processed shortly.');
-    setAmount('');
-    setAddress('');
-    setIsSubmitting(false);
+      // Update local state
+      if (data) {
+        dispatch({
+          type: 'ADD_TRANSACTION',
+          payload: {
+            id: data.id,
+            userId: state.user!.id,
+            type: 'withdrawal',
+            amount: withdrawAmount,
+            status: 'pending',
+            method: methodLabel,
+            address: address.trim(),
+            createdAt: data.created_at,
+          },
+        });
+      }
+
+      toast.success('Withdrawal request submitted! It will be processed within ' + withdrawalSettings.processingTime + '.');
+      setAmount('');
+      setAddress('');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit withdrawal');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const fee = parseFloat(amount || '0') * parseFloat(selectedMethod.fee) / 100;
-  const total = parseFloat(amount || '0') - fee;
+  const isFrozen = globalFrozen || state.user?.withdrawalFrozen;
 
   return (
-    <div className="min-h-screen bg-crypto-dark">
+    <div className="min-h-screen bg-crypto-dark pb-24 lg:pb-12">
       <Header />
-      
       <main className="pt-24 pb-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Page Header */}
           <div className="flex items-center gap-4 mb-8">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              className="text-white hover:bg-crypto-card"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-white hover:bg-crypto-card">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-display font-bold text-white">
-                Withdraw Funds
-              </h1>
-              <p className="text-gray-400 mt-1">
-                Withdraw your earnings securely
-              </p>
+              <h1 className="text-3xl font-display font-bold text-white">Withdraw Funds</h1>
+              <p className="text-gray-400 text-sm mt-1">Request a withdrawal to your wallet or bank</p>
             </div>
           </div>
 
-          {/* Balance Card */}
-          <Card className="mb-8 bg-gradient-to-r from-crypto-yellow/20 to-crypto-yellow/5 border-crypto-yellow/30">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 mb-1">Available Balance</p>
-                  <p className="text-3xl font-bold text-white">
-                    ${state.user?.balance.toLocaleString() || '0'}
-                  </p>
-                </div>
-                <div className="w-14 h-14 rounded-xl bg-crypto-yellow/20 flex items-center justify-center">
-                  <Wallet className="w-7 h-7 text-crypto-yellow" />
-                </div>
+          {/* Freeze Warning */}
+          {isFrozen && (
+            <div className="mb-6 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-400 font-medium">Withdrawals Suspended</p>
+                <p className="text-gray-400 text-sm mt-1">
+                  {globalFrozen
+                    ? 'All withdrawals are currently suspended by the platform. Please check back later or contact support.'
+                    : 'Your withdrawal access has been restricted. Please contact support for assistance.'}
+                </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          )}
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          {/* Balance Card */}
+          <div className="mb-6 bg-crypto-card border border-crypto-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-gray-400 text-sm">Available Balance</p>
+              <p className="text-2xl font-bold text-white">${(state.user?.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-gray-400 text-sm">Min / Max</p>
+              <p className="text-white text-sm">${withdrawalSettings.minAmount.toLocaleString()} / ${withdrawalSettings.maxAmount.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Method Selector */}
+            <div className="space-y-3">
+              <h2 className="text-white font-semibold text-sm uppercase tracking-wider">Withdrawal Method</h2>
+              {methods.map((method) => {
+                const Icon = method.icon;
+                return (
+                  <button key={method.id} onClick={() => { setSelectedMethodId(method.id); setSelectedNetwork('TRC20'); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                      selectedMethodId === method.id
+                        ? 'border-crypto-yellow bg-crypto-yellow/10 text-white'
+                        : 'border-crypto-border bg-crypto-card text-gray-300 hover:border-gray-500'
+                    }`}>
+                    <Icon className={`w-5 h-5 ${selectedMethodId === method.id ? 'text-crypto-yellow' : 'text-gray-400'}`} />
+                    <p className="text-sm font-medium">{method.name}</p>
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Withdrawal Form */}
             <div className="lg:col-span-2">
               <Card className="bg-crypto-card border-crypto-border">
                 <CardHeader>
-                  <CardTitle className="text-white">Select Withdrawal Method</CardTitle>
+                  <CardTitle className="text-white">Withdraw via {selectedMethod.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue={withdrawalMethods[0].id} onValueChange={(value) => {
-                    const method = withdrawalMethods.find(m => m.id === value);
-                    if (method) setSelectedMethod(method);
-                  }}>
-                    <TabsList className="grid grid-cols-2 mb-6 bg-crypto-dark">
-                      {withdrawalMethods.map((method) => (
-                        <TabsTrigger
-                          key={method.id}
-                          value={method.id}
-                          className="data-[state=active]:bg-crypto-yellow data-[state=active]:text-crypto-dark"
-                        >
-                          <method.icon className="w-4 h-4 mr-2" />
-                          {method.name}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Network selector */}
+                    {NETWORK_OPTIONS[selectedMethodId] && (
+                      <div className="space-y-2">
+                        <Label className="text-gray-400">Select Network</Label>
+                        <div className="flex gap-2 flex-wrap">
+                          {NETWORK_OPTIONS[selectedMethodId].map(net => (
+                            <button key={net} type="button" onClick={() => setSelectedNetwork(net)}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                                selectedNetwork === net
+                                  ? 'border-crypto-yellow bg-crypto-yellow/10 text-crypto-yellow'
+                                  : 'border-crypto-border bg-crypto-dark text-gray-400 hover:border-gray-500'
+                              }`}>
+                              {net}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                    {withdrawalMethods.map((method) => (
-                      <TabsContent key={method.id} value={method.id}>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                          {/* Address */}
-                          <div className="space-y-2">
-                            <Label htmlFor="address" className="text-white">
-                              {method.id === 'bank' ? 'Bank Account Number' : 'Wallet Address'}
-                            </Label>
-                            <Input
-                              id="address"
-                              type="text"
-                              value={address}
-                              onChange={(e) => setAddress(e.target.value)}
-                              placeholder={method.id === 'bank' ? 'Enter account number' : 'Enter wallet address'}
-                              className="bg-crypto-dark border-crypto-border text-white"
-                              required
-                            />
+                    {/* Amount */}
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Amount (USD)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
+                          className="pl-8 bg-crypto-dark border-crypto-border text-white"
+                          placeholder={`Min $${withdrawalSettings.minAmount}`} required />
+                      </div>
+                      {withdrawAmount > 0 && (
+                        <div className="bg-crypto-dark border border-crypto-border rounded-lg p-3 space-y-1 text-sm">
+                          <div className="flex justify-between text-gray-400">
+                            <span>Withdrawal amount</span>
+                            <span className="text-white">${withdrawAmount.toFixed(2)}</span>
                           </div>
-
-                          {/* Amount */}
-                          <div className="space-y-2">
-                            <Label htmlFor="amount" className="text-white">
-                              Withdrawal Amount (USD)
-                            </Label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                              <Input
-                                id="amount"
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                placeholder={`Min: $${method.minAmount}`}
-                                className="pl-8 bg-crypto-dark border-crypto-border text-white"
-                                required
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Min: ${method.minAmount} - Max: ${method.maxAmount.toLocaleString()}
-                            </p>
+                          <div className="flex justify-between text-gray-400">
+                            <span>Fee ({withdrawalSettings.feeType === 'percentage' ? `${withdrawalSettings.fee}%` : `$${withdrawalSettings.fee}`})</span>
+                            <span className="text-red-400">-${fee.toFixed(2)}</span>
                           </div>
+                          <div className="flex justify-between font-semibold border-t border-crypto-border pt-1 mt-1">
+                            <span className="text-gray-300">You receive</span>
+                            <span className="text-green-400">${youReceive.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                          {/* Summary */}
-                          {amount && (
-                            <div className="p-4 rounded-xl bg-crypto-dark border border-crypto-border space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Amount</span>
-                                <span className="text-white">${parseFloat(amount).toFixed(2)}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-400">Fee ({method.fee})</span>
-                                <span className="text-red-500">-${fee.toFixed(2)}</span>
-                              </div>
-                              <div className="border-t border-crypto-border pt-2 flex justify-between">
-                                <span className="text-gray-300">You Receive</span>
-                                <span className="text-green-500 font-bold">${total.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          )}
+                    {/* Address */}
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">
+                        {selectedMethodId === 'bank' ? 'Bank Account Details' : `${selectedMethod.name} Wallet Address`}
+                      </Label>
+                      <Input value={address} onChange={(e) => setAddress(e.target.value)}
+                        className="bg-crypto-dark border-crypto-border text-white font-mono"
+                        placeholder={selectedMethodId === 'bank'
+                          ? 'Bank name, account number, routing number'
+                          : `Enter your ${selectedMethod.name} address`}
+                        required />
+                      <p className="text-xs text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Double-check your address — transactions cannot be reversed
+                      </p>
+                    </div>
 
-                          {/* Submit Button */}
-                          <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light font-semibold py-6"
-                          >
-                            {isSubmitting ? (
-                              <div className="w-6 h-6 border-2 border-crypto-dark border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              'Request Withdrawal'
-                            )}
-                          </Button>
-                        </form>
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Info Sidebar */}
-            <div className="space-y-6">
-              <Card className="bg-crypto-card border-crypto-border">
-                <CardHeader>
-                  <CardTitle className="text-white text-lg">Withdrawal Info</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Processing Time</span>
-                    <span className="text-white">{selectedMethod.processingTime}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Fee</span>
-                    <span className="text-red-500">{selectedMethod.fee}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Min Amount</span>
-                    <span className="text-white">${selectedMethod.minAmount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Max Amount</span>
-                    <span className="text-white">${selectedMethod.maxAmount.toLocaleString()}</span>
-                  </div>
+                    <Button type="submit" disabled={isSubmitting || isFrozen}
+                      className="w-full bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light font-semibold disabled:opacity-50">
+                      {isSubmitting ? 'Submitting...' : 'Submit Withdrawal Request'}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
 
-              <Card className="bg-crypto-card border-crypto-border">
-                <CardHeader>
-                  <CardTitle className="text-white text-lg flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-crypto-yellow" />
-                    Important
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 text-sm text-gray-400">
-                    <li>• Double-check your wallet address before submitting</li>
-                    <li>• Withdrawals are processed within the stated time</li>
-                    <li>• Minimum withdrawal amount applies</li>
-                    <li>• Fees are deducted from the withdrawal amount</li>
-                    <li>• Contact support for any issues</li>
-                  </ul>
-                </CardContent>
-              </Card>
+              <div className="mt-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
+                <p className="text-yellow-400 text-sm font-medium mb-2">Processing Information</p>
+                <ul className="text-gray-400 text-xs space-y-1">
+                  <li>• Processing time: {withdrawalSettings.processingTime}</li>
+                  <li>• Withdrawals are reviewed manually for security</li>
+                  <li>• You will receive a notification once processed</li>
+                  <li>• Contact support if your withdrawal is delayed</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

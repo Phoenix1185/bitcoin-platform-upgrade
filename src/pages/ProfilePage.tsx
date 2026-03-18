@@ -83,23 +83,36 @@ export default function ProfilePage() {
     );
   }
 
-  const handleSaveProfile = () => {
-    dispatch({
-      type: 'UPDATE_USER',
-      payload: {
-        ...formData,
-      },
-    });
-    setIsEditing(false);
-    toast.success('Profile updated successfully');
+  const handleSaveProfile = async () => {
+    try {
+      const { error } = await supabase.from('profiles').update({
+        name: formData.name,
+        phone_number: formData.phoneNumber,
+        country: formData.country,
+        date_of_birth: formData.dateOfBirth,
+      }).eq('id', state.user!.id);
+      if (error) throw error;
+      dispatch({ type: 'UPDATE_USER', payload: { ...formData } });
+      setIsEditing(false);
+      toast.success('Profile updated successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update profile');
+    }
   };
 
-  const handleSaveSettings = () => {
-    dispatch({
-      type: 'UPDATE_USER',
-      payload: settings,
-    });
-    toast.success('Settings saved successfully');
+  const handleSaveSettings = async () => {
+    try {
+      const { error } = await supabase.from('profiles').update({
+        email_notifications: settings.emailNotifications,
+        sms_notifications: settings.smsNotifications,
+        two_factor_enabled: settings.twoFactorEnabled,
+      }).eq('id', state.user!.id);
+      if (error) throw error;
+      dispatch({ type: 'UPDATE_USER', payload: settings });
+      toast.success('Settings saved successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save settings');
+    }
   };
 
   const handleCurrencyChange = (code: string) => {
@@ -424,14 +437,55 @@ export default function ProfilePage() {
                         {getKycStatusBadge()}
                       </div>
                       
-                      {user.kycStatus !== 'approved' && (
-                        <Button 
-                          className="w-full mt-4 bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
-                          onClick={() => toast.info('KYC verification coming soon')}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          {user.kycStatus === 'pending' ? 'View Status' : 'Start Verification'}
-                        </Button>
+                      {user.kycStatus !== 'approved' && user.kycStatus !== 'pending' && (
+                        <div className="mt-4 space-y-3">
+                          <p className="text-gray-400 text-sm">Upload a government-issued ID to verify your identity.</p>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            id="kyc-upload"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              try {
+                                const ext = file.name.split('.').pop();
+                                const path = `kyc/${state.user!.id}/${Date.now()}.${ext}`;
+                                const { error: uploadError } = await supabase.storage
+                                  .from('kyc-documents')
+                                  .upload(path, file, { upsert: true });
+                                if (uploadError) throw uploadError;
+                                const { data: urlData } = supabase.storage.from('kyc-documents').getPublicUrl(path);
+                                await supabase.from('profiles').update({
+                                  kyc_status: 'pending',
+                                  kyc_documents: [{ type: 'id', url: urlData.publicUrl, submitted_at: new Date().toISOString() }],
+                                }).eq('id', state.user!.id);
+                                await supabase.from('notifications').insert({
+                                  user_id: state.user!.id, type: 'kyc',
+                                  title: 'KYC Submitted',
+                                  message: 'Your identity documents have been submitted and are under review.',
+                                  is_read: false,
+                                });
+                                dispatch({ type: 'UPDATE_USER', payload: { kycStatus: 'pending' } });
+                                toast.success('Documents submitted! Under review.');
+                              } catch (err: any) {
+                                toast.error(err.message || 'Upload failed. Please try again.');
+                              }
+                            }}
+                          />
+                          <Button
+                            className="w-full bg-crypto-yellow text-crypto-dark hover:bg-crypto-yellow-light"
+                            onClick={() => document.getElementById('kyc-upload')?.click()}
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload ID Document
+                          </Button>
+                        </div>
+                      )}
+                      {user.kycStatus === 'pending' && (
+                        <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                          <p className="text-yellow-400 text-sm">Your documents are under review. We will notify you once verified.</p>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
