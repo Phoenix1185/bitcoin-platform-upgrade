@@ -108,7 +108,6 @@ export default function InvestmentPlansPage() {
           endDate: result.investment.endDate,
           status: 'active',
           totalEarned: 0,
-          createdAt: result.investment.startDate,
         },
       });
 
@@ -129,14 +128,14 @@ export default function InvestmentPlansPage() {
           userId: state.user.id,
           type: 'investment',
           amount,
-          status: 'completed',
+          status: 'approved',
           method: 'balance',
           notes: `Invested in ${selectedPlan.name}`,
           createdAt: new Date().toISOString(),
         },
       });
 
-      toast.success(`Successfully invested $${amount.toLocaleString()} in ${selectedPlan.name}!`);
+      // Update balance in local statested $${amount.toLocaleString()} in ${selectedPlan.name}!`);
       setIsDialogOpen(false);
       setSelectedPlan(null);
       navigate('/dashboard');
@@ -191,18 +190,17 @@ export default function InvestmentPlansPage() {
         dispatch({
           type: 'ADD_INVESTMENT',
           payload: {
-            id: inv.id,
-            userId: state.user.id,
-            planId: selectedPlan.id,
-            planName: selectedPlan.name,
-            amount,
-            dailyReturn: selectedPlan.dailyReturn,
-            duration: selectedPlan.duration,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            status: 'active',
-            totalEarned: 0,
-            createdAt: startDate.toISOString(),
+          id: inv.id,
+          userId: state.user.id,
+          planId: selectedPlan.id,
+          planName: selectedPlan.name,
+          amount,
+          dailyReturn: selectedPlan.dailyReturn,
+          duration: selectedPlan.duration,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          status: 'active',
+          totalEarned: 0,
           },
         });
 

@@ -16,7 +16,7 @@ import {
   Plus,
   History
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { calculateCurrentEarnings } from '@/lib/investmentCalculator';
 
 /**
@@ -402,7 +402,7 @@ export default function DashboardPage() {
                           </td>
                           <td className="py-4 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                              tx.status === 'approved' || tx.status === 'completed' 
+                              tx.status === 'approved' 
                                 ? 'bg-green-500/20 text-green-400'
                                 : tx.status === 'pending'
                                 ? 'bg-yellow-500/20 text-yellow-400'
